@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",
-    "start": "npx tsc && dotenvx run -f .env -- node dist/index.js",
+    "start": "npx tsc && dotenvx run -f .env.docker.compose -- node dist/index.js",
     "dev": "dotenvx run -f .env -- npx tsx watch src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate:up": "npx db-migrate up",

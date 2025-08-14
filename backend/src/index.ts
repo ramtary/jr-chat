@@ -16,6 +16,41 @@ type Message = {
   "timestamp": string,
 };
 
+// Валидатор
+type Validator<T> = {
+  validate: (value: T) => boolean;
+  message: string;
+};
+
+// Результат валидации
+type ValidationResult =
+  | { isValid: true; error: null }
+  | { isValid: false; error: string };
+
+// Валидация
+function validate<T>(value: T, validators: Validator<T>[]): ValidationResult {
+  for (const { validate, message } of validators) {
+    if(!validate(value)) {
+      return { isValid: false, error: message};
+    }
+  }
+  return { isValid: true, error: null };
+}
+
+// Валидаторы для username
+const usernameValidations: Validator<string>[] = [
+  { validate: (username) => typeof username === "string", message: "Username must be a string" },
+  { validate: (username) => username.length >= 2, message: "Username must be at least 2 characters" },
+  { validate: (username) => username.length <= 50, message: "Username must be at most 50 characters" },
+]
+
+// Валидаторы для message (text)
+const messageValidations: Validator<string>[] = [
+  { validate: (message) => typeof message === "string", message: "Message must be a string" },
+  { validate: (message) => message.length >= 1, message: "Message must be at least 1 character" },
+  { validate: (message) => message.length <= 500, message: "Message must be at most 500 characters" },
+]
+
 const pgClient = new Client();
 
 const server = express();
@@ -74,6 +109,25 @@ async function initServer() {
       return;
     }
 
+    if (username == null) {
+      res.status(401).send({
+          message: "Username is null",
+      });
+
+      return;
+    } 
+    else {
+      const usernameCheck = validate(username, usernameValidations);  
+
+      if (!usernameCheck.isValid) {
+        res.status(401).send({
+          message: usernameCheck.error,
+        });
+
+        return;
+      }
+    }
+
     const newUserResponse = await pgClient.query(`INSERT INTO users(
       username
     ) VALUES (
@@ -89,7 +143,7 @@ async function initServer() {
     if (newUser === null) {
       res.sendStatus(500);
       return;
-    }
+    } 
 
     res.status(200).send({
       "user_id": newUser.user_id,
@@ -112,10 +166,32 @@ async function initServer() {
   server.post("/messages", async function (req: Request, res: Response) {
     const { user_id, text } = req.body;
     const user = await getUserById(user_id);
+    const username = user?.username;
 
-    if (user === null) {
+    if (username == undefined) {
       res.status(401).send({
-        message: "Incorrect username",
+          message: "Username does not exist",
+      });
+
+      return;
+    } 
+    else {
+      const usernameCheck = validate(username, usernameValidations);  
+
+      if (!usernameCheck.isValid) {
+        res.status(401).send({
+          message: usernameCheck.error,
+        });
+
+        return;
+      }
+    }
+
+    const messageCheck = validate(text, messageValidations);  
+
+    if (!messageCheck.isValid) {
+      res.status(401).send({
+        message: messageCheck.error,
       });
 
       return;
